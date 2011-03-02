@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'squarepusher'
+
+def error_msg(msg)
+  $stderr.puts "ERROR - #{msg}"
+end
+
+def fail(msg, code=1)
+  error_msg(msg)
+  exit code
+end
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "USAGE: squarepusher [options] <output_dir>"
+  
+  opts.on("-k", "--key KEY", "api key") do |v|
+    options[:key] = v
+  end
+
+  opts.on("-s", "--secret SECRET", "secret") do |v|
+    options[:secret] = v
+  end
+
+  opts.on("-t", "--token TOKEN", "auth token") do |v|
+    options[:token] = v
+  end
+  
+  opts.parse!(ARGV)
+  
+  if not options.has_key?(:key)
+    error_msg "api key is required"
+    $stderr.puts opts
+    exit 2
+  elsif not options.has_key?(:key)
+    error_msg "secret is required"
+    $stderr.puts opts
+    exit 3
+  elsif not options.has_key?(:token)
+    error_msg "token is required"
+    $stderr.puts opts
+    exit 4
+  end
+  
+  if ARGV.size != 1
+    error_msg "output dir required"
+    $stderr.puts opts
+    exit 5
+  end
+end
+
+# puts ARGV.inspect
+
+output_dir = ARGV[0]
+
+# puts "output_dir: #{output_dir}"
+
+client = Squarepusher::Client.new(options[:key], options[:secret], options[:token])
+
+client.each_photoset do |pset|
+  puts pset.inspect
+  client.download_photoset(pset, output_dir)
+end
