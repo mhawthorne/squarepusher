@@ -1,7 +1,7 @@
 require 'fileutils'
 require 'optparse'
 
-require 'flickraw'
+FlickRawOptions = {}
 
 $fileutils = FileUtils::Verbose
 
@@ -9,7 +9,11 @@ module Squarepusher
   
   class Client
     
-    def initialize(key, secret, token)
+    def initialize(key, secret, token, args={})
+      FlickRawOptions['timeout'] = args[:timeout] || 5
+      
+      require 'flickraw'
+      
       FlickRaw.api_key = key
       FlickRaw.shared_secret = secret
       
@@ -17,6 +21,27 @@ module Squarepusher
       
       # FlickRaw.auth_token = token
       # FlickRaw.timeout = 5
+      
+      size = args[:size] || :large
+      
+      @url_for_photo = case size
+          when :original
+            lambda { |p| FlickRaw.url_o(p) }
+          when :large
+            lambda { |p| FlickRaw.url_b(p) }
+          when :medium_640
+            lambda { |p| FlickRaw.url_z(p) }
+          when :medium_500
+            lambda { |p| FlickRaw.url(p) }
+          when :small
+            lambda { |p| FlickRaw.url_m(p) }
+          when :thumb
+            lambda { |p| FlickRaw.url_t(p) }
+          when :small_square
+            lambda { |p| FlickRaw.url_s(p) }
+          else
+            raise Exception("unrecognized size: #{size}")
+      end
     end
     
     def each_photoset
@@ -32,14 +57,11 @@ module Squarepusher
       photos = flickr.photosets.getPhotos(:photoset_id => photoset.id, :extras => "original_format,url_o")["photo"]
       photos.each do |p|
         # puts p.inspect
-        name = p.title 
-        # short_url = FlickRaw.url_short(p)
-        # small_url = FlickRaw.url_s(p)
-        # original_url = FlickRaw.url_o(p)
-        url = FlickRaw.url_m(p)
-        # puts "#{name} #{url}"
+        name = p.title.gsub(/[^\w_+\.-]/, '-')
         
-        path = File.join(set_dir, name)
+        url = @url_for_photo[p]
+        
+        path = File.join(set_dir, "#{name}.jpg")
         if File.exists?(path)
           puts "#{path} exists; skipping"
         else
@@ -51,12 +73,10 @@ module Squarepusher
     private
     
       def download_image(url, path)
-        # puts "url: #{url}"
+        puts "#{url} -> #{path}"
         uri = URI.parse(url)
-        # puts url.inspect
         Net::HTTP.start(uri.host, uri.port) do |http|
           full_path = uri.request_uri
-          # puts "full_path: #{full_path}"
           response = http.get(full_path)
       
           # puts response.inspect
@@ -64,20 +84,13 @@ module Squarepusher
             when Net::HTTPError
             when Net::HTTPFound
               location = response["location"]
-              # puts "location: #{location}"
               if not location =~ /^http.*/
                 location = "#{uri.scheme}://#{uri.host}:#{uri.port}#{location}"
-                # puts "transformed location to #{location}"
               end
               download(location, path)
             else
-              puts "#{url} -> #{path}"
-              # puts "writing #{path}"
               open(path, 'w') do |out|
                 out << response.body
-                # response.read_body do |part|
-                #   out << part
-                # end
               end
           end
         end
