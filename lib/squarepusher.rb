@@ -87,7 +87,7 @@ module Squarepusher
               if not location =~ /^http.*/
                 location = "#{uri.scheme}://#{uri.host}:#{uri.port}#{location}"
               end
-              download(location, path)
+              download_image(location, path)
             else
               open(path, 'w') do |out|
                 out << response.body
