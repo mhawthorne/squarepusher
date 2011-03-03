@@ -12,27 +12,82 @@ def fail(msg, code=1)
   exit code
 end
 
-options = { :size => :original }
-OptionParser.new do |opts|
-  opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <output_dir>"
 
-  opts.on("-s", "--size SIZE", "secret") do |v|
+actions = {}
+
+actions[:list_sets] = lambda do |client, args|
+  client.each_photoset do |pset|
+    puts Squarepusher.describe_photoset(pset)
+  end
+end
+
+actions[:grab_all_sets] = lambda do |client, args|
+  if not args
+    fail("expected: <output_dir>")
+  end
+  
+  client.each_photoset do |pset|
+    puts Squarepusher.describe_photoset(pset)
+    results = client.download_photoset(pset, output_dir)
+    puts results.inspect
+  end
+end
+
+actions[:grab_set] = lambda do |client, args|
+  if args.size != 2
+    fail("expected: <photoset_id> <output_dir>")
+  end
+  
+  pset_id, output_dir = args
+  pset = client.get_photoset(pset_id)
+  client.download_photoset(pset, output_dir)
+end
+
+actions[:find_set] = lambda do |client, args|
+  if args.size != 1
+    fail("expected: <photoset_id>")
+  end
+  
+  pset_id, output_dir = args
+  pset = client.get_photoset(pset_id)
+  puts Squarepusher.describe_photoset(pset)
+end
+
+
+def action_str(actions)
+  actions.keys.join(", ")
+end
+
+
+options = { :size => :original }
+args = nil
+action = nil
+client = nil
+OptionParser.new do |opts|
+  opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <action:(#{action_str(actions)})> [args]"
+
+  # TODO: list sizing options
+  opts.on("-s", "--size SIZE", "size of photos to download (using flickr terminology)") do |v|
     options[:size] = v.to_sym
   end
     
   opts.parse!(ARGV)
   
-  if ARGV.size != 4
+  if ARGV.size < 4
     $stderr.puts opts
     exit 1
   end
+  
+  key, secret, token, action = ARGV.slice!(0...4)
+  args = ARGV
+  
+  action = action.to_sym
+  if not actions.has_key?(action)
+    $stderr.puts opts
+    exit 2
+  end
+  
+  client = Squarepusher::Client.new(key, secret, token, options)
 end
 
-key, secret, token, output_dir = ARGV
-
-client = Squarepusher::Client.new(key, secret, token, options)
-
-client.each_photoset do |pset|
-  puts pset.inspect
-  client.download_photoset(pset, output_dir)
-end
+actions[action].call(client, args || [])
