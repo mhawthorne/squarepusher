@@ -22,9 +22,11 @@ actions[:list_sets] = lambda do |client, args|
 end
 
 actions[:grab_all_sets] = lambda do |client, args|
-  if not args
+  if args.size != 1
     fail("expected: <output_dir>")
   end
+  
+  output_dir = args[0]
   
   client.each_photoset do |pset|
     puts Squarepusher.describe_photoset(pset)
@@ -40,7 +42,8 @@ actions[:grab_set] = lambda do |client, args|
   
   pset_id, output_dir = args
   pset = client.get_photoset(pset_id)
-  client.download_photoset(pset, output_dir)
+  results = client.download_photoset(pset, output_dir)
+  puts results.inspect
 end
 
 actions[:find_set] = lambda do |client, args|

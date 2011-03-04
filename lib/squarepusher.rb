@@ -18,6 +18,9 @@ module Squarepusher
       "#{pset.id} #{pset.title}"
     end
     
+    def normalize(name)
+      name.gsub(/[^\w_+\.=-]+/, '-')
+    end
   end
 
   class Client
@@ -68,14 +71,18 @@ module Squarepusher
     end
     
     def download_photoset(photoset, output_dir)
-      set_dir = File.join(output_dir, photoset.title.gsub(/\s+/, '-'))
+      dirname = Squarepusher.normalize(photoset.title)
+      set_dir = File.join(output_dir, dirname)
       $fileutils.mkdir_p set_dir
       
       results = {}
       photos = flickr.photosets.getPhotos(:photoset_id => photoset.id, :extras => "original_format,url_o")["photo"]
       photos.each do |p|
         # puts p.inspect
-        name = p.title.gsub(/[^\w_+\.-]/, '-')
+        
+        # TODO: use name of file in url since titles can be duplicate
+        normalized_title = Squarepusher.normalize(p.title)
+        name = "#{p.id}-#{normalized_title}"
         
         url = @url_for_photo[p]
         
@@ -85,13 +92,15 @@ module Squarepusher
         
         if File.exists?(path)
           puts "#{path} exists; skipping"
+          result = :exists
         else
           result = download_image(url, path)
-          if results.has_key?(result)
-            results[result] = results[result] + 1
-          else
-            results[result] = 1
-          end
+        end
+        
+        if results.has_key?(result)
+          results[result] = results[result] + 1
+        else
+          results[result] = 1
         end
       end
       results
@@ -111,29 +120,34 @@ module Squarepusher
         result = :unknown
         # puts url
         uri = URI.parse(url)
-        Net::HTTP.start(uri.host, uri.port) do |http|
-          full_path = uri.request_uri
-          response = http.get(full_path)
+        begin
+          Net::HTTP.start(uri.host, uri.port) do |http|
+            full_path = uri.request_uri
+            response = http.get(full_path)
       
-          # puts response.inspect
-          case response
-            when Net::HTTPError
-              result = :error
-            when Net::HTTPFound
-              redirects = args[:redirects] || []
-              redirects << url
-              location = response["location"]
-              if not location =~ /^http.*/
-                location = "#{uri.scheme}://#{uri.host}:#{uri.port}#{location}"
-              end
-              download_image(location, path, :redirects => redirects)
-            else
-              puts "#{url} -> #{path}"
-              open(path, 'w') do |out|
-                out << response.body
-              end
-              result = :success
+            # puts response.inspect
+            case response
+              when Net::HTTPError
+                result = :error
+              when Net::HTTPFound
+                redirects = args[:redirects] || []
+                redirects << url
+                location = response["location"]
+                if not location =~ /^http.*/
+                  location = "#{uri.scheme}://#{uri.host}:#{uri.port}#{location}"
+                end
+                download_image(location, path, :redirects => redirects)
+              else
+                puts "#{url} -> #{path}"
+                open(path, 'w') do |out|
+                  out << response.body
+                end
+                result = :success
+            end
           end
+        rescue Error => e
+          $stderr.puts e
+          result = :error
         end
         return result
       end
