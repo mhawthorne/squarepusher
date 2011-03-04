@@ -15,10 +15,13 @@ to generate a token, follow these instructions:
 [http://www.flickr.com/services/api/auth.howto.mobile.html](http://www.flickr.com/services/api/auth.howto.mobile.html "flickr mobile auth instructions")
 
 using the mobile auth approach is best here, since the idea is that you generate a one-time token that can be stored on a device. in this case the device
-can just be the hard drive of your laptop, or for me, an item in my bash history.
+can just be the hard drive of your laptop.
 
-dependencies
+dependencies:
+
   * [flickraw](https://github.com/hanklords/flickraw "flickraw") (awesome project)
+
  
 behaviors of note:
+
   * photoset and image names are normalized using this: `name.gsub(/[^\w_+\.=-]+/, '-')`
