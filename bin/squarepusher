@@ -58,7 +58,11 @@ end
 
 
 def action_str(actions)
-  actions.keys.join(", ")
+  actions.keys.join(",")
+end
+
+def size_str
+  Squarepusher.sizes.join(",")
 end
 
 
@@ -70,7 +74,7 @@ OptionParser.new do |opts|
   opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <action:(#{action_str(actions)})> [args]"
 
   # TODO: list sizing options
-  opts.on("-s", "--size SIZE", "size of photos to download (using flickr terminology)") do |v|
+  opts.on("-s", "--size SIZE", "size of photos to download (#{size_str()})") do |v|
     options[:size] = v.to_sym
   end
     

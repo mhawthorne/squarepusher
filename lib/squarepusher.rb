@@ -19,7 +19,11 @@ module Squarepusher
     end
     
     def normalize(name)
-      name.gsub(/[^\w_+\.=-]+/, '-')
+      name.gsub(/[^a-zA-Z0-9_+\.=-]+/, '-')
+    end
+    
+    def sizes
+       return [:original, :large, :medium_640, :medium_500, :small, :thumb, :small_square]
     end
   end
 
@@ -38,7 +42,7 @@ module Squarepusher
       # FlickRaw.auth_token = token
       # FlickRaw.timeout = 5
       
-      size = args[:size] || :large
+      size = args[:size] || :small_square
       
       @url_for_photo = case size
           when :original
@@ -75,19 +79,31 @@ module Squarepusher
       set_dir = File.join(output_dir, dirname)
       $fileutils.mkdir_p set_dir
       
+      # handles socket timeout when loading photoset info
       results = {}
-      photos = flickr.photosets.getPhotos(:photoset_id => photoset.id, :extras => "original_format,url_o")["photo"]
+      status, photoset_result = handle_error { flickr.photosets.getPhotos(:photoset_id => photoset.id, :extras => "original_format,url_o")["photo"] }
+      if status == :error
+        $stderr.puts photoset_result
+        results[status] = 1
+        return results
+      else
+        photos = photoset_result
+      end
+      
       photos.each do |p|
         # puts p.inspect
         
         # TODO: use name of file in url since titles can be duplicate
-        normalized_title = Squarepusher.normalize(p.title)
-        name = "#{p.id}-#{normalized_title}"
+        name = p.id
+        if not p.title.empty?
+          normalized_title = Squarepusher.normalize(p.title)
+          name << "-#{normalized_title}"
+        end
         
         url = @url_for_photo[p]
         
         # TODO: only add .jpg suffix if it's not in the image name already
-        path = File.join(set_dir, "#{name}")
+        path = File.join(set_dir, name)
         path << ".jpg" if not path =~ /.jpg$/
         
         if File.exists?(path)
@@ -148,6 +164,17 @@ module Squarepusher
         rescue Error => e
           $stderr.puts e
           result = :error
+        end
+        return result
+      end
+      
+      def handle_error
+        raise Exception("block required") if not block_given?
+        begin
+          block_result = yield
+          result = [:success, block_result]
+        rescue Error => e
+          result = [:error, e]
         end
         return result
       end
