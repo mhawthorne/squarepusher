@@ -15,7 +15,7 @@ module Squarepusher
   class << self
     
     def describe_photoset(pset)
-      "#{pset.id} #{pset.title}"
+      "#{pset.id} '#{pset.title}'"
     end
     
     def normalize(name)
@@ -25,11 +25,15 @@ module Squarepusher
     def sizes
        return [:original, :large, :medium_640, :medium_500, :small, :thumb, :small_square]
     end
+        
   end
 
   class Client
     
     def initialize(key, secret, token, args={})
+      @overwrite = args[:overwrite] || false
+      @verbose = args[:verbose] || false
+      
       FlickRawOptions['timeout'] = args[:timeout] || 5
       
       require 'flickraw'
@@ -38,9 +42,6 @@ module Squarepusher
       FlickRaw.shared_secret = secret
       
       flickr.auth.checkToken(:auth_token => token)
-      
-      # FlickRaw.auth_token = token
-      # FlickRaw.timeout = 5
       
       size = args[:size] || :small_square
       
@@ -83,7 +84,7 @@ module Squarepusher
       results = {}
       status, photoset_result = handle_error { flickr.photosets.getPhotos(:photoset_id => photoset.id, :extras => "original_format,url_o")["photo"] }
       if status == :error
-        $stderr.puts photoset_result
+        error photoset_result
         results[status] = 1
         return results
       else
@@ -94,7 +95,8 @@ module Squarepusher
         # puts p.inspect
         
         # TODO: use name of file in url since titles can be duplicate
-        name = p.id
+        # copies string?
+        name = "#{p.id}"
         if not p.title.empty?
           normalized_title = Squarepusher.normalize(p.title)
           name << "-#{normalized_title}"
@@ -106,7 +108,7 @@ module Squarepusher
         path = File.join(set_dir, name)
         path << ".jpg" if not path =~ /.jpg$/
         
-        if File.exists?(path)
+        if not @overwrite and File.exists?(path)
           puts "#{path} exists; skipping"
           result = :exists
         else
@@ -124,17 +126,22 @@ module Squarepusher
  
     private
     
+      # was originally sending this to stderr, but the difference in flushing between
+      # stdout and stderr was creating logging confusion
+      def error(msg)
+        puts "ERROR: #{msg}"
+      end
+    
       def download_image(url, path, args={})
         if url == UNAVAILABLE_URL
           redirects = args[:redirects]
           msg = "#{url} unavailable"
           msg << "; redirects: #{redirects}" if not redirects.nil?
           puts msg
-          return :unvailable
+          return :unavailable
         end
         
         result = :unknown
-        # puts url
         uri = URI.parse(url)
         begin
           Net::HTTP.start(uri.host, uri.port) do |http|
@@ -152,19 +159,34 @@ module Squarepusher
                 if not location =~ /^http.*/
                   location = "#{uri.scheme}://#{uri.host}:#{uri.port}#{location}"
                 end
-                download_image(location, path, :redirects => redirects)
+                result = download_image(location, path, :redirects => redirects)
               else
                 puts "#{url} -> #{path}"
-                open(path, 'w') do |out|
-                  out << response.body
+                if @verbose
+                  response.each_header do |k, v|
+                    puts "#{k}: #{v}"
+                  end
+                  puts
                 end
-                result = :success
+                
+                # detects weird 404 or 504 responses included in body but not HTTP status
+                content_type = response["content-type"]
+                if not (content_type =~ /text\/\w+/).nil?
+                  error "unexpected content type: #{content_type}"
+                  result = :error
+                else
+                  open(path, 'w') do |out|
+                    out << response.body
+                  end
+                  result = :success
+                end
             end
           end
-        rescue Error => e
-          $stderr.puts e
+        rescue Exception => e
+          error e
           result = :error
         end
+        
         return result
       end
       
@@ -173,8 +195,8 @@ module Squarepusher
         begin
           block_result = yield
           result = [:success, block_result]
-        rescue Error => e
-          result = [:error, e]
+        rescue
+          result = [:error, $!]
         end
         return result
       end

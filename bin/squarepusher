@@ -28,10 +28,18 @@ actions[:grab_all_sets] = lambda do |client, args|
   
   output_dir = args[0]
   
+  total_results = {}
   client.each_photoset do |pset|
-    puts Squarepusher.describe_photoset(pset)
-    results = client.download_photoset(pset, output_dir)
-    puts results.inspect
+    pset_description = Squarepusher.describe_photoset(pset)
+    puts "[set] #{pset_description}"
+    pset_results = client.download_photoset(pset, output_dir)
+    puts "[results] #{pset_description} #{pset_results.inspect}"
+    total_results[pset_description] = pset_results
+    puts
+  end
+  
+  total_results.each_pair do |k, v|
+    puts "#{k}: #{v.inspect}"
   end
 end
 
@@ -73,11 +81,18 @@ client = nil
 OptionParser.new do |opts|
   opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <action:(#{action_str(actions)})> [args]"
 
-  # TODO: list sizing options
+  opts.on("-o", "--overwrite", "overwrite already downloaded files") do |v|
+    options[:overwrite] = v
+  end
+
   opts.on("-s", "--size SIZE", "size of photos to download (#{size_str()})") do |v|
     options[:size] = v.to_sym
   end
-    
+  
+  opts.on("-v", "--verbose", "log verbosely") do |v|
+    options[:verbose] = v
+  end
+  
   opts.parse!(ARGV)
   
   if ARGV.size < 4
