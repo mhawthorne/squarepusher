@@ -3,113 +3,118 @@
 require 'rubygems'
 require 'squarepusher'
 
-def error_msg(msg)
-  $stderr.puts "ERROR - #{msg}"
-end
+Squarepusher::CLI.main
 
-def fail(msg, code=1)
-  error_msg(msg)
-  exit code
-end
-
-
-actions = {}
-
-actions[:list_sets] = lambda do |client, args|
-  client.each_photoset do |pset|
-    puts Squarepusher.describe_photoset(pset)
-  end
-end
-
-actions[:grab_all_sets] = lambda do |client, args|
-  if args.size != 1
-    fail("expected: <output_dir>")
-  end
-  
-  output_dir = args[0]
-  
-  total_results = {}
-  client.each_photoset do |pset|
-    pset_description = Squarepusher.describe_photoset(pset)
-    puts "[set] #{pset_description}"
-    pset_results = client.download_photoset(pset, output_dir)
-    puts "[results] #{pset_description} #{pset_results.inspect}"
-    total_results[pset_description] = pset_results
-    puts
-  end
-  
-  total_results.each_pair do |k, v|
-    puts "#{k}: #{v.inspect}"
-  end
-end
-
-actions[:grab_set] = lambda do |client, args|
-  if args.size != 2
-    fail("expected: <photoset_id> <output_dir>")
-  end
-  
-  pset_id, output_dir = args
-  pset = client.get_photoset(pset_id)
-  results = client.download_photoset(pset, output_dir)
-  puts results.inspect
-end
-
-actions[:find_set] = lambda do |client, args|
-  if args.size != 1
-    fail("expected: <photoset_id>")
-  end
-  
-  pset_id, output_dir = args
-  pset = client.get_photoset(pset_id)
-  puts Squarepusher.describe_photoset(pset)
-end
-
-
-def action_str(actions)
-  actions.keys.join(",")
-end
-
-def size_str
-  Squarepusher.sizes.join(",")
-end
-
-
-options = { :size => :original }
-args = nil
-action = nil
-client = nil
-OptionParser.new do |opts|
-  opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <action:(#{action_str(actions)})> [args]"
-
-  opts.on("-o", "--overwrite", "overwrite already downloaded files") do |v|
-    options[:overwrite] = v
-  end
-
-  opts.on("-s", "--size SIZE", "size of photos to download (#{size_str()})") do |v|
-    options[:size] = v.to_sym
-  end
-  
-  opts.on("-v", "--verbose", "log verbosely") do |v|
-    options[:verbose] = v
-  end
-  
-  opts.parse!(ARGV)
-  
-  if ARGV.size < 4
-    $stderr.puts opts
-    exit 1
-  end
-  
-  key, secret, token, action = ARGV.slice!(0...4)
-  args = ARGV
-  
-  action = action.to_sym
-  if not actions.has_key?(action)
-    $stderr.puts opts
-    exit 2
-  end
-  
-  client = Squarepusher::Client.new(key, secret, token, options)
-end
-
-actions[action].call(client, args || [])
+# require 'rubygems'
+# require 'squarepusher'
+# 
+# def error_msg(msg)
+#   $stderr.puts "ERROR - #{msg}"
+# end
+# 
+# def fail(msg, code=1)
+#   error_msg(msg)
+#   exit code
+# end
+# 
+# 
+# actions = {}
+# 
+# actions[:list_sets] = lambda do |client, args|
+#   client.each_photoset do |pset|
+#     puts Squarepusher.describe_photoset(pset)
+#   end
+# end
+# 
+# actions[:grab_all_sets] = lambda do |client, args|
+#   if args.size != 1
+#     fail("expected: <output_dir>")
+#   end
+#   
+#   output_dir = args[0]
+#   
+#   total_results = {}
+#   client.each_photoset do |pset|
+#     pset_description = Squarepusher.describe_photoset(pset)
+#     puts "[set] #{pset_description}"
+#     pset_results = client.download_photoset(pset, output_dir)
+#     puts "[results] #{pset_description} #{pset_results.inspect}"
+#     total_results[pset_description] = pset_results
+#     puts
+#   end
+#   
+#   total_results.each_pair do |k, v|
+#     puts "#{k}: #{v.inspect}"
+#   end
+# end
+# 
+# actions[:grab_set] = lambda do |client, args|
+#   if args.size != 2
+#     fail("expected: <photoset_id> <output_dir>")
+#   end
+#   
+#   pset_id, output_dir = args
+#   pset = client.get_photoset(pset_id)
+#   results = client.download_photoset(pset, output_dir)
+#   puts results.inspect
+# end
+# 
+# actions[:find_set] = lambda do |client, args|
+#   if args.size != 1
+#     fail("expected: <photoset_id>")
+#   end
+#   
+#   pset_id, output_dir = args
+#   pset = client.get_photoset(pset_id)
+#   puts Squarepusher.describe_photoset(pset)
+# end
+# 
+# 
+# def action_str(actions)
+#   actions.keys.join(",")
+# end
+# 
+# def size_str
+#   Squarepusher.sizes.join(",")
+# end
+# 
+# 
+# options = { :size => :original }
+# args = nil
+# action = nil
+# client = nil
+# OptionParser.new do |opts|
+#   opts.banner = "USAGE: squarepusher [options] <api-key> <api-secret> <token> <action:(#{action_str(actions)})> [args]"
+# 
+#   opts.on("-o", "--overwrite", "overwrite already downloaded files") do |v|
+#     options[:overwrite] = v
+#   end
+# 
+#   opts.on("-s", "--size SIZE", "size of photos to download (#{size_str()})") do |v|
+#     options[:size] = v.to_sym
+#   end
+#   
+#   opts.on("-v", "--verbose", "log verbosely") do |v|
+#     options[:verbose] = v
+#   end
+#   
+#   opts.parse!(ARGV)
+#   
+#   if ARGV.size < 4
+#     $stderr.puts opts
+#     exit 1
+#   end
+#   
+#   key, secret, token, action = ARGV.slice!(0...4)
+#   args = ARGV
+#   
+#   action = action.to_sym
+#   if not actions.has_key?(action)
+#     $stderr.puts opts
+#     exit 2
+#   end
+#   
+#   client = Squarepusher::Client.new(key, secret, token, options)
+# end
+# 
+# actions[action].call(client, args || [])
