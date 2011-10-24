@@ -5,8 +5,11 @@ if you are using rubygems, get started with:
 
 then run `squarepusher` and let the help message guide you.
 
-you can easily start be executing:
-    `squarepusher <api-key> <secret> <token> list_sets`
+you can easily start by creating a file ~/.squarepusher.yaml with this content:
+    key: consumer key
+    secret: consumer secret
+    token: access token
+    token_secret: access token secret
     
 then choosing a set and executing:
     `squarepusher <api-key> <secret> <token> grab_set <set-id> <output-dir>`
@@ -14,12 +17,9 @@ then choosing a set and executing:
 to generate a token, follow these instructions:
 [http://www.flickr.com/services/api/auth.howto.mobile.html](http://www.flickr.com/services/api/auth.howto.mobile.html "flickr mobile auth instructions")
 
-using the mobile auth approach is best here, since the idea is that you generate a one-time token that can be stored on a device. in this case the device
-can just be the hard drive of your laptop.
-
 dependencies:
 
-  * [flickraw](https://github.com/hanklords/flickraw "flickraw") (awesome project)
+  * [flickraw](https://github.com/hanklords/flickraw "flickraw")
 
  
 behaviors of note:
