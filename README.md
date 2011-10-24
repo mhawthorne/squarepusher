@@ -6,6 +6,7 @@ if you are using rubygems, get started with:
 then run `squarepusher` and let the help message guide you.
 
 you can easily start by creating a file ~/.squarepusher.yaml with this content:
+
     key: consumer key
     secret: consumer secret
     token: access token
